@@ -13,6 +13,37 @@ class Modem {
         this.onSaveAuthCallback = null;
     }
 
+    buildRequestHeaders() {
+
+        // default headers for all requests
+        let headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept-Encoding': 'gzip, deflate',
+            'Pragma': 'no-cache',
+            'Accept-Language': 'en-us'
+        };
+
+        // add token if available
+        if(this.token != null){
+            headers['__RequestVerificationToken'] = this.token;
+        }
+
+        // add session cookie if available
+        if(this.session != null){
+            headers['Cookie'] = this.session;
+        }
+
+        return headers;
+
+    }
+
+    async initSession() {
+        const xml = await this.getXml(`http://${this.ip}/api/webserver/SesTokInfo`);
+        this.session = xml.response.SesInfo;
+        this.token = xml.response.TokInfo;
+    }
+
     onSaveAuth(callback) {
         this.onSaveAuthCallback = callback;
     }
@@ -40,44 +71,11 @@ class Modem {
         }
     }
 
-    async init() {
-        const session = await this.getSession();
-        this.session = session.SesInfo;
-        this.token = session.TokInfo;
-    }
-
-    async getSession() {
-        try {
-            var url = `http://${this.ip}/html/home.html`
-            var res = await superagent.get(url)
-                .timeout({
-                    response: 5000,  // Wait 5 seconds for the server to start sending,
-                    deadline: 10000, // but allow 10 seconds for the file to finish loading.
-                })
-                .retry(2);
-            let SesInfo = res.header['set-cookie'][0].split(';')[0];
-            let TokInfo = res.text.match(/<meta name="csrf_token" content="(.*?)"\/>/)[1];
-            return { SesInfo, TokInfo };
-        } catch (e) {
-            console.log(e)
-            return null;
-        }
-    }
-
     async get(url) {
 
         // send post request
         var res = await superagent.get(url)
-            .set({
-                '__RequestVerificationToken': this.token,
-                'Cookie': this.session,
-                'Connection': 'keep-alive',
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept-Encoding': 'gzip, deflate',
-                'Pragma': 'no-cache',
-                'Accept-Language': 'en-us'
-            });
+            .set(this.buildRequestHeaders());
 
         // update session
         if(res.res.headers['set-cookie']) {
@@ -96,16 +94,7 @@ class Modem {
 
         // send post request
         var res = await superagent.post(url)
-            .set({
-                '__RequestVerificationToken': this.token,
-                'Cookie': this.session,
-                'Connection': 'keep-alive',
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept-Encoding': 'gzip, deflate',
-                'Pragma': 'no-cache',
-                'Accept-Language': 'en-us'
-            })
+            .set(this.buildRequestHeaders())
             .send(data);
 
         // update session
@@ -144,7 +133,7 @@ class Modem {
     async postXml(url, data) {
 
         // build request xml
-        const xml = new XMLBuilder().build(data);
+        const xml = new XMLBuilder({}).build(data);
 
         // send post request
         const response = await this.post(url, "<?xml version='1.0' encoding='UTF-8'?>" + xml);
@@ -157,26 +146,32 @@ class Modem {
     async login() {
 
         // init session
-        await this.init();
+        await this.initSession();
 
-        // encode password
-        const encodedPassword = Password.v4(this.username, this.password, this.token);
-
-        try {
-
-            var url = `http://${this.ip}/api/user/login`
-            const requestXml = `<?xml version "1.0" encoding="UTF-8"?><request><Username>${this.username}</Username><Password>${encodedPassword}</Password><password_type>4</password_type></request>`;
-            var res = await this.post(url, requestXml);
-
-            // parse error code
-            // 108007 = login rate limit
-
-            return true;
-
-        } catch (e) {
-            console.error(e);
-            return false;
+        // determine required password type
+        const loginState = await this.getLoginState();
+        const passwordType = loginState.response?.password_type;
+        if(passwordType !== 4){
+            throw `Modem requested unsupported password_type: ${passwordType}`;
         }
+
+        // send login request
+        const data = await this.postXml(`http://${this.ip}/api/user/login`, {
+            'request': {
+                'Username': this.username,
+                'Password': Password.v4(this.username, this.password, this.token),
+                'password_type': '4',
+            },
+        });
+
+        // todo handle specific error codes and return friendly messages
+
+        // reject if login failed
+        if(data.response !== 'OK'){
+            throw 'Failed to log in!';
+        }
+
+        return data;
 
     }
 
