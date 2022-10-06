@@ -176,6 +176,14 @@ class Modem {
 
     }
 
+    async logout() {
+        return this.postXml('/api/user/logout', {
+            'request': {
+                'Logout': '1',
+            },
+        });
+    }
+
     async getLoginState() {
         return this.getXml('/api/user/state-login');
     }
