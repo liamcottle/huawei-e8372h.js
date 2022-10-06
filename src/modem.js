@@ -10,7 +10,44 @@ class Modem {
         this.password = password;
         this.session = session;
         this.token = token;
+        this.client = this._createAxiosClient();
         this.onSaveAuthCallback = null;
+    }
+
+    _createAxiosClient() {
+
+        // create axios client
+        const client = axios.create({
+            baseURL: `http://${this.ip}`,
+        });
+
+        // intercept all responses
+        client.interceptors.response.use(async (response) => {
+
+            // update session
+            if(response.headers['set-cookie']){
+                this.session = response.headers['set-cookie'];
+            }
+
+            // update token (returned after login)
+            if(response.headers['__requestverificationtokenone']){
+                this.token = response.headers['__requestverificationtokenone'];
+            }
+
+            // update token (returned after other requests)
+            if(response.headers['__requestverificationtoken']){
+                this.token = response.headers['__requestverificationtoken'];
+            }
+
+            // fire auth save callback
+            await this._onSaveAuth();
+
+            return response;
+
+        });
+
+        return client;
+
     }
 
     buildRequestHeaders() {
@@ -38,7 +75,7 @@ class Modem {
     }
 
     async initSession() {
-        const xml = await this.getXml(`http://${this.ip}/api/webserver/SesTokInfo`);
+        const xml = await this.getXml('/api/webserver/SesTokInfo');
         this.session = xml.response.SesInfo;
         this.token = xml.response.TokInfo;
     }
@@ -70,60 +107,12 @@ class Modem {
         }
     }
 
-    async get(url) {
-
-        // send post request
-        const response = await axios.get(url, {
-            headers: this.buildRequestHeaders(),
-        });
-
-        // update session
-        if(response.headers['set-cookie']) {
-            this.session = response.headers['set-cookie'];
-        }
-
-        // fire auth save callback
-        await this._onSaveAuth();
-
-        // return result
-        return response;
-
-    }
-
-    async post(url, data) {
-
-        // send post request
-        const response = await axios.post(url, data, {
-            headers: this.buildRequestHeaders(),
-        });
-
-        // update session
-        if(response.headers['set-cookie']){
-            this.session = response.headers['set-cookie'];
-        }
-
-        // update token (after login)
-        if(response.headers['__requestverificationtokenone']){
-            this.token = response.headers['__requestverificationtokenone'];
-        }
-
-        // update token (other requests)
-        if(response.headers['__requestverificationtoken']){
-            this.token = response.headers['__requestverificationtoken'];
-        }
-
-        // fire auth save callback
-        await this._onSaveAuth();
-
-        // return result
-        return response;
-
-    }
-
     async getXml(url) {
 
         // send get request
-        const response = await this.get(url);
+        const response = await this.client.get(url, {
+            headers: this.buildRequestHeaders(),
+        });
 
         // parse response xml
         return new XMLParser().parse(response.data);
@@ -136,7 +125,10 @@ class Modem {
         const xml = new XMLBuilder({}).build(data);
 
         // send post request
-        const response = await this.post(url, "<?xml version='1.0' encoding='UTF-8'?>" + xml);
+        const requestData = "<?xml version='1.0' encoding='UTF-8'?>" + xml;
+        const response = await this.client.post(url, requestData, {
+            headers: this.buildRequestHeaders(),
+        });
 
         // parse response xml
         return new XMLParser().parse(response.data);
@@ -156,7 +148,7 @@ class Modem {
         }
 
         // send login request
-        const data = await this.postXml(`http://${this.ip}/api/user/login`, {
+        const data = await this.postXml('/api/user/login', {
             'request': {
                 'Username': this.username,
                 'Password': Password.v4(this.username, this.password, this.token),
@@ -176,7 +168,7 @@ class Modem {
     }
 
     async getLoginState() {
-        return this.getXml(`http://${this.ip}/api/user/state-login`);
+        return this.getXml('/api/user/state-login');
     }
 
     async isLoggedIn() {
@@ -191,7 +183,7 @@ class Modem {
         try {
 
             // fetch messages
-            const data = await this.postXml(`http://${this.ip}/api/sms/sms-list`, {
+            const data = await this.postXml('/api/sms/sms-list', {
                 'request': {
                     'PageIndex': 1,
                     'ReadCount': 20,
@@ -237,7 +229,7 @@ class Modem {
         try {
 
             // fetch messages
-            const data = await this.postXml(`http://${this.ip}/api/sms/set-read`, {
+            const data = await this.postXml('/api/sms/set-read', {
                 'request': {
                     'Index': index,
                 },
@@ -255,7 +247,7 @@ class Modem {
         try {
 
             // fetch messages
-            const data = await this.postXml(`http://${this.ip}/api/sms/delete-sms`, {
+            const data = await this.postXml('/api/sms/delete-sms', {
                 'request': {
                     'Index': index,
                 },
