@@ -1,6 +1,6 @@
-# Huawei E8372H API
+# Huawei E8372H
 
-This is a NodeJS library for interacting with the [Huawei E8372H](https://consumer.huawei.com/en/routers/e8372/) LTE USB dongle.
+This is a NodeJS library for interacting with the [Huawei E8372H](https://consumer.huawei.com/en/routers/e8372/) LTE USB modem.
 
 ## Password Types
 
