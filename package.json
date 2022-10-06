@@ -8,6 +8,24 @@
   },
   "author": "Liam Cottle",
   "license": "MIT",
+  "homepage": "https://github.com/liamcottle/huawei-e8372h.js#readme",
+  "keywords": [
+    "huawei",
+    "e8372",
+    "e8372h",
+    "lte",
+    "modem",
+    "sms",
+    "api",
+    "nodejs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liamcottle/huawei-e8372h.js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/liamcottle/huawei-e8372h.js/issues"
+  },
   "dependencies": {
     "axios": "^1.0.0",
     "fast-xml-parser": "^4.0.10",
