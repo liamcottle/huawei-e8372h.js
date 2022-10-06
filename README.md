@@ -19,12 +19,30 @@ const modem = new Modem('192.168.8.1', 'admin', 'admin');
 // log in to modem before using any features
 modem.login().then(async () => {
 
-    // get sms messages
-    const messages = await modem.getMessages();
+    // list sms messages
+    const messages = await modem.api.sms.list();
     console.log(messages);
+
+    // send an sms
+    // await modem.api.sms.send('+64210000000', 'message content');
     
 });
 ```
+
+## Supported Features
+
+- [x] Listing SMS from Inbox/Outbox.
+- [x] Sending SMS to multiple phone numbers.
+- [x] Marking SMS on the modem as read.
+- [x] Deleting SMS from the modem.
+
+```js
+modem.api.sms.list();
+modem.api.sms.send();
+modem.api.sms.markAsRead();
+modem.api.sms.delete();
+```
+
 
 ## Password Types
 
