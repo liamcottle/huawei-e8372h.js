@@ -1,5 +1,5 @@
 const { XMLParser, XMLBuilder } = require('fast-xml-parser');
-const superagent = require('superagent');
+const axios = require('axios');
 const Password = require('./password');
 
 class Modem {
@@ -19,9 +19,8 @@ class Modem {
         let headers = {
             'Content-Type': 'application/x-www-form-urlencoded',
             'X-Requested-With': 'XMLHttpRequest',
-            'Accept-Encoding': 'gzip, deflate',
             'Pragma': 'no-cache',
-            'Accept-Language': 'en-us'
+            'Accept-Language': 'en-us',
         };
 
         // add token if available
@@ -74,49 +73,50 @@ class Modem {
     async get(url) {
 
         // send post request
-        var res = await superagent.get(url)
-            .set(this.buildRequestHeaders());
+        const response = await axios.get(url, {
+            headers: this.buildRequestHeaders(),
+        });
 
         // update session
-        if(res.res.headers['set-cookie']) {
-            this.session = res.res.headers['set-cookie'][0];
+        if(response.headers['set-cookie']) {
+            this.session = response.headers['set-cookie'];
         }
 
         // fire auth save callback
         await this._onSaveAuth();
 
         // return result
-        return res;
+        return response;
 
     }
 
     async post(url, data) {
 
         // send post request
-        var res = await superagent.post(url)
-            .set(this.buildRequestHeaders())
-            .send(data);
+        const response = await axios.post(url, data, {
+            headers: this.buildRequestHeaders(),
+        });
 
         // update session
-        if(res.res.headers['set-cookie']){
-            this.session = res.res.headers['set-cookie'][0];
+        if(response.headers['set-cookie']){
+            this.session = response.headers['set-cookie'];
         }
 
         // update token (after login)
-        if(res.res.headers['__requestverificationtokenone']){
-            this.token = res.res.headers['__requestverificationtokenone'];
+        if(response.headers['__requestverificationtokenone']){
+            this.token = response.headers['__requestverificationtokenone'];
         }
 
         // update token (other requests)
-        if(res.res.headers['__requestverificationtoken']){
-            this.token = res.res.headers['__requestverificationtoken'];
+        if(response.headers['__requestverificationtoken']){
+            this.token = response.headers['__requestverificationtoken'];
         }
 
         // fire auth save callback
         await this._onSaveAuth();
 
         // return result
-        return res;
+        return response;
 
     }
 
@@ -126,7 +126,7 @@ class Modem {
         const response = await this.get(url);
 
         // parse response xml
-        return new XMLParser().parse(response.res.text);
+        return new XMLParser().parse(response.data);
 
     }
 
@@ -139,7 +139,7 @@ class Modem {
         const response = await this.post(url, "<?xml version='1.0' encoding='UTF-8'?>" + xml);
 
         // parse response xml
-        return new XMLParser().parse(response.res.text);
+        return new XMLParser().parse(response.data);
 
     }
 

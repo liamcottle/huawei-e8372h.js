@@ -31,7 +31,6 @@
     "fast-xml-parser": "^4.0.10",
     "js-base64": "^3.7.2",
     "js-sha256": "^0.9.0",
-    "readline-sync": "^1.4.10",
-    "superagent": "^8.0.2"
+    "readline-sync": "^1.4.10"
   }
 }
