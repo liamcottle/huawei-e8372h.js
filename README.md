@@ -26,6 +26,9 @@ modem.login().then(async () => {
     // send an sms
     // await modem.api.sms.send('+64210000000', 'message content');
     
+    // logout of modem
+    await modem.logout();
+    
 });
 ```
 
