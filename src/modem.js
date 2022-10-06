@@ -1,17 +1,26 @@
 const { XMLParser, XMLBuilder } = require('fast-xml-parser');
 const axios = require('axios');
 const Password = require('./password');
+const SMS = require('./api/sms');
 
 class Modem {
 
     constructor(ip, username, password, session, token) {
+
         this.ip = ip;
         this.username = username;
         this.password = password;
         this.session = session;
         this.token = token;
         this.client = this._createAxiosClient();
+
         this.onSaveAuthCallback = null;
+
+        // init api wrappers
+        this.api = {
+            sms: new SMS(this),
+        };
+
     }
 
     _createAxiosClient() {
@@ -177,88 +186,6 @@ class Modem {
             return loginState.response?.State === 0;
         } catch(_) {}
         return false;
-    }
-
-    async getMessages() {
-        try {
-
-            // fetch messages
-            const data = await this.postXml('/api/sms/sms-list', {
-                'request': {
-                    'PageIndex': 1,
-                    'ReadCount': 20,
-                    'BoxType': 1, // inbox
-                    'SortType': 0,
-                    'Ascending': 0,
-                    'UnreadPreferred': 1, // was 0, changed to 1 to test?
-                },
-            });
-
-            // attempt to get message(s)
-            const results = [];
-            const count = data.response.Count;
-            let messages = data.response.Messages.Message;
-
-            // when only 1 message exists, xml shows it as a single object, instead of array
-            if(count === 1){
-                messages = [
-                    messages,
-                ];
-            }
-
-            // parse messages
-            for(const index in messages){
-                const message = messages[index];
-                results.push({
-                    index: message.Index,
-                    from: `${message.Phone}`, // cast to string
-                    content: `${message.Content}`, // cast to string
-                    is_unread: message.Smstat === 0, // Smstat=0 unread, Smstat=1 read
-                });
-            }
-
-            return results;
-
-        } catch (e) {
-            console.log(e)
-            return [];
-        }
-    }
-
-    async setMessageRead(index) {
-        try {
-
-            // fetch messages
-            const data = await this.postXml('/api/sms/set-read', {
-                'request': {
-                    'Index': index,
-                },
-            });
-
-            return data.Response === 'OK';
-
-        } catch (e) {
-            console.log(e)
-            return false;
-        }
-    }
-
-    async deleteMessage(index) {
-        try {
-
-            // fetch messages
-            const data = await this.postXml('/api/sms/delete-sms', {
-                'request': {
-                    'Index': index,
-                },
-            });
-
-            return data.Response === 'OK';
-
-        } catch (e) {
-            console.log(e)
-            return false;
-        }
     }
 
 }
