@@ -1,6 +1,6 @@
-const crypto = require('crypto');
 const { XMLParser, XMLBuilder } = require('fast-xml-parser');
 const superagent = require('superagent');
+const Password = require('./password');
 
 class Modem {
 
@@ -62,21 +62,6 @@ class Modem {
             console.log(e)
             return null;
         }
-    }
-
-    async encodePassword(username, password, token) {
-
-        // sha256 password to hex, then base64 encode the hex
-        let hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
-        hashedPassword = Buffer.from(hashedPassword).toString('base64');
-
-        // sha256 the auth string to hex, then base64 encode the hex
-        let authCredential = username + hashedPassword + token;
-        authCredential = crypto.createHash('sha256').update(authCredential).digest('hex');
-        authCredential = Buffer.from(authCredential).toString('base64');
-
-        return authCredential;
-
     }
 
     async get(url) {
@@ -175,7 +160,7 @@ class Modem {
         await this.init();
 
         // encode password
-        const encodedPassword = await this.encodePassword(this.username, this.password, this.token);
+        const encodedPassword = Password.v4(this.username, this.password, this.token);
 
         try {
 
